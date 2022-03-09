@@ -1,9 +1,35 @@
 const fs = require("fs");
 
+class Customers {
+  constructor(name, id1, id2) {
+    this.name = name;
+    this.id1 = id1;
+    this.id2 = id2;
+  }
+}
+
+const customers = new Map();
+
 try {
   const data = fs.readFileSync("test.csv", "utf8");
-  console.log(data);
-  console.log(CSVToArray(data));
+  const arr = CSVToArray(data);
+  arr.forEach((element) => {
+    customers.set(element[0], new Customers(element[0], element[1], null));
+  });
+} catch (err) {
+  console.error(err);
+}
+
+try {
+  const data = fs.readFileSync("test2.csv", "utf8");
+  const arr = CSVToArray(data);
+  arr.forEach((element) => {
+    let customer = customers.get(element[0]);
+    if (customer != null) customer.id2 = element[1];
+  });
+  customers.forEach((element) =>
+    console.log(`${element.name}\t${element.id1}\t${element.id2}`)
+  );
 } catch (err) {
   console.error(err);
 }
