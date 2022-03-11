@@ -1,4 +1,5 @@
 const fs = require("fs");
+const customers = new Map();
 
 class Customers {
   constructor(name, id1, id2, darkstore) {
@@ -9,18 +10,18 @@ class Customers {
   }
 }
 
-const customers = new Map();
-
+// map is setup using data from first file
 try {
   const data = fs.readFileSync("test.csv", "utf8");
   const arr = CSVToArray(data);
   arr.forEach((element) => {
-    customers.set(element[0], new Customers(element[0], element[1], null));
+    customers.set(element[0], new Customers(element[0], element[1]));
   });
 } catch (err) {
   console.error(err);
 }
 
+// map is filled with values from second file for the keys found
 try {
   const data = fs.readFileSync("test3.csv", "utf8");
   const arr = CSVToArray(data);
@@ -31,18 +32,20 @@ try {
       customer.darkstore = element[2];
     }
   });
-  let id = 60;
-  customers.forEach((element) => {
-    if (element.darkstore)
-      console.log(
-        `INSERT INTO table_uds ( id, user, dark) VALUES (${id++}, ${
-          element.id1
-        }, ${DarkStoreMapper(element.darkstore)});`
-      );
-  });
 } catch (err) {
   console.error(err);
 }
+
+// Generate SQL using the map
+let id = 60; // previous values in target table were in 50s
+customers.forEach((element) => {
+  if (element.darkstore)
+    console.log(
+      `INSERT INTO table_uds ( id, user, dark) VALUES (${id++}, ${
+        element.id1
+      }, ${DarkStoreMapper(element.darkstore)});`
+    );
+});
 
 function DarkStoreMapper(id) {
   if (id == 11001) return 5;
