@@ -57,6 +57,9 @@ async function splitCsv(inputPath, sizeMb) {
   function openNextFile() {
     fileIndex += 1;
     const outputPath = getOutputPath(inputPath, fileIndex);
+
+    console.log(`Creating ${outputPath}`); // 👈 added
+
     currentStream = fs.createWriteStream(outputPath, { encoding: 'utf8' });
     currentStream.write(headerLine);
     currentBytes = headerBytes;
