@@ -12,7 +12,8 @@ function getOutputPath(inputPath, index) {
   const dir = path.dirname(inputPath);
   const ext = path.extname(inputPath) || '.csv';
   const base = path.basename(inputPath, ext);
-  return path.join(dir, `${base}-${index}${ext}`);
+  const padded = String(index).padStart(3, '0');
+  return path.join(dir, `${base}-${padded}${ext}`);
 }
 
 async function splitCsv(inputPath, sizeMb) {
@@ -33,38 +34,39 @@ async function splitCsv(inputPath, sizeMb) {
   });
 
   let header = null;
+  let headerLine = null;
+  let headerBytes = 0;
+
   let fileIndex = 0;
   let currentStream = null;
   let currentBytes = 0;
   let rowCount = 0;
 
-  const closeCurrentStream = async () => {
+  async function closeCurrentStream() {
     if (!currentStream) return;
-    await new Promise((resolve, reject) => {
-      currentStream.end((err) => {
-        if (err) reject(err);
-        else resolve();
-      });
-    });
-    currentStream = null;
-  };
 
-  const openNextFile = () => {
+    const streamToClose = currentStream;
+    currentStream = null;
+
+    await new Promise((resolve, reject) => {
+      streamToClose.on('error', reject);
+      streamToClose.end(resolve);
+    });
+  }
+
+  function openNextFile() {
     fileIndex += 1;
     const outputPath = getOutputPath(inputPath, fileIndex);
     currentStream = fs.createWriteStream(outputPath, { encoding: 'utf8' });
-
-    currentStream.on('error', (err) => {
-      throw err;
-    });
-
-    currentStream.write(`${header}\n`);
-    currentBytes = Buffer.byteLength(`${header}\n`, 'utf8');
-  };
+    currentStream.write(headerLine);
+    currentBytes = headerBytes;
+  }
 
   for await (const line of rl) {
     if (header === null) {
       header = line;
+      headerLine = `${header}\n`;
+      headerBytes = Buffer.byteLength(headerLine, 'utf8');
       continue;
     }
 
@@ -75,7 +77,9 @@ async function splitCsv(inputPath, sizeMb) {
       openNextFile();
     }
 
-    if (currentBytes + rowBytes > maxBytes && currentBytes > Buffer.byteLength(`${header}\n`, 'utf8')) {
+    const hasDataRowsAlready = currentBytes > headerBytes;
+
+    if (hasDataRowsAlready && currentBytes + rowBytes > maxBytes) {
       await closeCurrentStream();
       openNextFile();
     }
@@ -96,7 +100,7 @@ async function splitCsv(inputPath, sizeMb) {
 
   if (rowCount === 0) {
     const outputPath = getOutputPath(inputPath, 1);
-    fs.writeFileSync(outputPath, `${header}\n`, 'utf8');
+    fs.writeFileSync(outputPath, headerLine, 'utf8');
     fileIndex = 1;
   }
 
